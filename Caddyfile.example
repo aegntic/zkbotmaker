@@ -1,0 +1,6 @@
+# Example Caddyfile for HTTPS reverse proxy
+# Copy this to Caddyfile and replace yourdomain.com with your actual domain
+
+yourdomain.com {
+    reverse_proxy botmaker:7100
+}

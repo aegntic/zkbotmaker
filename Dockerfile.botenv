@@ -49,8 +49,5 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
  && rustc --version \
  && chmod -R a+w $RUSTUP_HOME $CARGO_HOME
 
-# Make openclaw CLI available on PATH
-RUN ln -s /app/openclaw.mjs /usr/local/bin/openclaw
-
 # Switch back to non-root user
 USER node

@@ -8,6 +8,23 @@ services:
         BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:latest}
     image: ${BOTENV_IMAGE:-botmaker-env:latest}
 
+  caddy:
+    profiles: ["https"]   # Optional HTTPS reverse proxy (requires Caddyfile)
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - bm-internal
+    restart: unless-stopped
+    depends_on:
+      - botmaker
+
   botmaker:
     build: .
     container_name: botmaker
@@ -82,3 +99,5 @@ volumes:
   botmaker-data:
   botmaker-secrets:
   proxy-data:
+  caddy-data:
+  caddy-config:
