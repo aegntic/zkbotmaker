@@ -365,7 +365,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   if (config.caddyEnabled && config.publicHost) {
     const runningBots = listBots()
       .filter(b => b.status === 'running' && b.port != null)
-      .map(b => ({ hostname: b.hostname, port: b.port as number }));
+      .map(b => ({ hostname: b.hostname, port: Number(b.port) }));
     const restored = await getCaddy(config.publicHost).restoreRoutes(
       runningBots, BOT_INTERNAL_PORT, server.log,
     );

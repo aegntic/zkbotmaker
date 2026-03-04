@@ -100,7 +100,7 @@ export function getConfig(): AppConfig {
     proxyAdminToken,
     adminPassword,
     sessionExpiryMs: getEnvIntOrDefault('SESSION_EXPIRY_MS', 24 * 60 * 60 * 1000),
-    publicHost: process.env.PUBLIC_HOST?.trim() || null,
+    publicHost: process.env.PUBLIC_HOST?.trim() || null, // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing -- intentionally treats empty string as null
     caddyEnabled: process.env.CADDY_ENABLED === 'true',
   };
 
