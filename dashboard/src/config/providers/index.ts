@@ -67,3 +67,8 @@ export function getDefaultModel(providerId: string): string {
 export function getKeyHint(providerId: string): string {
   return getProvider(providerId)?.keyHint ?? 'API key';
 }
+
+export function requiresAuth(providerId: string): boolean {
+  const provider = getProvider(providerId);
+  return provider ? !provider.noAuth : true;
+}

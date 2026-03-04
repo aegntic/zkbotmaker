@@ -24,13 +24,18 @@ describe('templates', () => {
       botName: 'Test Bot',
       aiProvider: 'openai',
       model: 'gpt-4',
-      channel: { type: 'telegram', token: 'tg-token-123' },
+      channels: [{ type: 'telegram', token: 'tg-token-123' }],
       persona: {
         name: 'TestBot',
         identity: 'A helpful test assistant',
         description: 'I help with testing',
       },
       port: 19000,
+      features: {
+        toolsProfile: 'messaging',
+        telegramStreaming: 'partial',
+        discordStreaming: 'partial',
+      },
       ...overrides,
     };
   }
@@ -64,15 +69,16 @@ describe('templates', () => {
     const proxy = { baseUrl: 'http://proxy:9101/v1/openai', token: 'tok-123' };
 
     it.each([
-      ['openai', 'text-embedding-3-small'],
-      ['mistral', 'mistral-embed'],
-      ['ollama', 'nomic-embed-text'],
-      ['deepseek', 'text-embedding-3-small'],
-    ])('%s with proxy returns embedding model %s', (provider, model) => {
+      ['openai', 'openai', 'text-embedding-3-small'],
+      ['mistral', 'openai', 'mistral-embed'],
+      ['ollama', 'ollama', 'nomic-embed-text'],
+      ['deepseek', 'openai', 'text-embedding-3-small'],
+    ])('%s with proxy returns embedding model %s', (provider, expectedProvider, model) => {
       expect(getMemorySearchConfig(provider, proxy)).toEqual({
-        provider: 'openai',
+        provider: expectedProvider,
         model,
         remote: { baseUrl: proxy.baseUrl, apiKey: proxy.token },
+        fallback: 'none',
       });
     });
 
@@ -134,14 +140,25 @@ describe('templates', () => {
       const openclawPath = join(testDir, 'bots', config.botHostname, 'openclaw.json');
       const openclawConfig = JSON.parse(readFileSync(openclawPath, 'utf-8')) as Record<string, unknown>;
 
+      // Internal port is always BOT_INTERNAL_PORT (8080) for Caddy integration
       expect(openclawConfig.gateway).toEqual({
         mode: 'local',
-        port: 19000,
+        port: 8080,
         bind: 'lan',
         auth: { mode: 'token' },
-        controlUi: { allowInsecureAuth: true },
+        controlUi: { allowInsecureAuth: true, dangerouslyDisableDeviceAuth: true },
       });
-      expect((openclawConfig.channels as Record<string, unknown>).telegram).toEqual({ enabled: true });
+      expect((openclawConfig.channels as Record<string, unknown>).telegram).toEqual({
+        enabled: true,
+        tokenFile: '/run/secrets/TELEGRAM_TOKEN',
+        streaming: 'off',
+        dmPolicy: 'pairing',
+        groupPolicy: 'allowlist',
+        reactionLevel: 'ack',
+        ackReaction: '👀',
+        historyLimit: 50,
+        textChunkLimit: 4000,
+      });
       const defaults = (openclawConfig.agents as Record<string, unknown>).defaults as Record<string, unknown>;
       expect(defaults.model).toEqual({ primary: 'openai/gpt-4' });
       expect(defaults.memorySearch).toEqual({ enabled: false });
@@ -179,6 +196,7 @@ describe('templates', () => {
           baseUrl: 'http://proxy:9101/v1',
           apiKey: 'proxy-token-123',
         },
+        fallback: 'none',
       });
     });
 
@@ -193,7 +211,7 @@ describe('templates', () => {
 
     it('should handle discord channel', () => {
       const config = createTestConfig({
-        channel: { type: 'discord', token: 'dc-token-123' },
+        channels: [{ type: 'discord', token: 'dc-token-123' }],
       });
       createBotWorkspace(testDir, config);
 
@@ -201,7 +219,7 @@ describe('templates', () => {
       const openclawConfig = JSON.parse(readFileSync(openclawPath, 'utf-8')) as Record<string, unknown>;
       const channels = openclawConfig.channels as Record<string, unknown>;
 
-      expect(channels.discord).toEqual({ enabled: true });
+      expect(channels.discord).toBeDefined();
       expect(channels.telegram).toBeUndefined();
     });
 

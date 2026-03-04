@@ -3,6 +3,7 @@ import './BotLink.css';
 interface BotLinkProps {
   port: number;
   hostname?: string;
+  gatewayToken?: string | null;
   disabled?: boolean;
 }
 
@@ -24,9 +25,14 @@ function getLanHost(fallback?: string): string {
   return host;
 }
 
-export function BotLink({ port, hostname, disabled }: BotLinkProps) {
+export function BotLink({ port, hostname, gatewayToken, disabled }: BotLinkProps) {
   const host = getLanHost(hostname);
-  const url = `http://${host}:${port}/`;
+  // Use HTTPS if we're on a public hostname (not localhost/LAN IP)
+  const isPublicHost = !/^(localhost|127\.0\.0\.1|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(host);
+  const protocol = isPublicHost ? 'https' : 'http';
+  const baseUrl = `${protocol}://${host}:${port}/`;
+  // Include gateway token for Control UI auth (skips device pairing)
+  const url = gatewayToken ? `${baseUrl}#token=${encodeURIComponent(gatewayToken)}` : baseUrl;
 
   if (disabled) {
     return (

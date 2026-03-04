@@ -37,6 +37,10 @@ export interface AppConfig {
   adminPassword: string;
   /** Session token expiry in milliseconds (default 24 hours) */
   sessionExpiryMs: number;
+  /** Public hostname for bot UI access (optional, for CORS allowedOrigins) */
+  publicHost: string | null;
+  /** Whether Caddy HTTPS proxy is enabled (set at compose time) */
+  caddyEnabled: boolean;
 }
 
 function getEnvOrDefault(key: string, defaultValue: string): string {
@@ -96,6 +100,8 @@ export function getConfig(): AppConfig {
     proxyAdminToken,
     adminPassword,
     sessionExpiryMs: getEnvIntOrDefault('SESSION_EXPIRY_MS', 24 * 60 * 60 * 1000),
+    publicHost: process.env.PUBLIC_HOST ?? null,
+    caddyEnabled: process.env.CADDY_ENABLED === 'true',
   };
 }
 

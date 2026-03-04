@@ -34,7 +34,9 @@ export function validateHostname(hostname: string): void {
 
 /**
  * Creates a secrets directory for a specific bot.
- * Directory is created with mode 0700 (owner read/write/execute only).
+ * Directory is created with mode 0755 (world-readable) because bot containers
+ * run as non-root user 'node' (uid 1000) but secrets are written by root.
+ * Security is maintained by per-bot isolation (each bot only sees its own dir).
  *
  * @param hostname - Hostname of the bot
  * @returns Path to the created directory
@@ -46,15 +48,16 @@ export function createBotSecretsDir(hostname: string): string {
   const secretsRoot = getSecretsRoot();
   const botDir = join(secretsRoot, hostname);
 
-  mkdirSync(botDir, { mode: 0o700, recursive: true });
+  mkdirSync(botDir, { mode: 0o755, recursive: true });
 
   return botDir;
 }
 
 /**
  * Writes a secret file for a bot.
- * File is written with mode 0600 (owner read/write only).
- * Creates the bot's secrets directory if it doesn't exist.
+ * File is written with mode 0644 (world-readable) because bot containers
+ * run as non-root user 'node' (uid 1000) but secrets are written by root.
+ * Security is maintained by per-bot isolation (each bot only sees its own dir).
  *
  * @param hostname - Hostname of the bot
  * @param name - Name of the secret (becomes filename)
@@ -71,7 +74,7 @@ export function writeSecret(hostname: string, name: string, value: string): void
   const botDir = createBotSecretsDir(hostname);
   const filePath = join(botDir, name);
 
-  writeFileSync(filePath, value, { mode: 0o600 });
+  writeFileSync(filePath, value, { mode: 0o644 });
 }
 
 /**

@@ -172,7 +172,7 @@ export function initOllamaVendor(upstream: string): void {
     host: url.hostname,
     port: parseInt(url.port) || (url.protocol === 'https:' ? 443 : 80),
     protocol: url.protocol === 'https:' ? 'https' : 'http',
-    basePath: '/v1',
+    basePath: '',  // Empty to support both /v1/* (OpenAI compat) and /api/* (native)
     authHeader: 'Authorization',
     authFormat: () => '',
     noAuth: true,

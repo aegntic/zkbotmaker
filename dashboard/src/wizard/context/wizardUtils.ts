@@ -1,4 +1,5 @@
-import type { SessionScope, CreateBotInput } from '../../types';
+import type { SessionScope, ToolsProfile, StreamingMode, CreateBotInput } from '../../types';
+import { requiresAuth, getProvider } from '../../config/providers';
 
 export interface WizardState {
   selectedTemplateId: string | null;
@@ -18,8 +19,11 @@ export interface WizardState {
     sandbox: boolean;
     sandboxTimeout: number;
     sessionScope: SessionScope;
+    toolsProfile: ToolsProfile;
+    telegramStreaming: StreamingMode;
+    discordStreaming: StreamingMode;
   };
-  providerConfigs: Record<string, { model?: string; baseUrl?: string } | undefined>;
+  providerConfigs: Record<string, { model?: string; baseUrl?: string; apiKey?: string } | undefined>;
   channelConfigs: Record<string, { token: string } | undefined>;
 }
 
@@ -64,7 +68,17 @@ export function validatePage(page: number, state: WizardState): ValidationResult
       return { valid: true };
 
     case 3:
-      // Config details
+      // Config details - check providers that need API keys
+      for (const providerId of state.enabledProviders) {
+        if (requiresAuth(providerId)) {
+          const config = state.providerConfigs[providerId];
+          if (!config?.apiKey?.trim()) {
+            const provider = getProvider(providerId);
+            return { valid: false, error: `API key required for ${provider?.label ?? providerId}` };
+          }
+        }
+      }
+      // Check channel tokens
       for (const channelId of state.enabledChannels) {
         const config = state.channelConfigs[channelId];
         if (!config?.token.trim()) {
@@ -87,6 +101,7 @@ export function buildCreateBotInput(state: WizardState): CreateBotInput {
     providerId,
     model: state.providerConfigs[providerId]?.model ?? '',
     baseUrl: state.providerConfigs[providerId]?.baseUrl,
+    apiKey: state.providerConfigs[providerId]?.apiKey,
   }));
 
   const channels = state.enabledChannels.map((channelType) => ({
@@ -113,6 +128,9 @@ export function buildCreateBotInput(state: WizardState): CreateBotInput {
       sandbox: state.features.sandbox,
       sandboxTimeout: state.features.sandbox ? state.features.sandboxTimeout : undefined,
       sessionScope: state.features.sessionScope,
+      toolsProfile: state.features.toolsProfile,
+      telegramStreaming: state.features.telegramStreaming,
+      discordStreaming: state.features.discordStreaming,
     },
     tags: state.routingTags.length > 0 ? state.routingTags : undefined,
   };

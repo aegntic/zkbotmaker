@@ -47,10 +47,16 @@ export async function forwardToUpstream(
       upstreamHeaders[vendorConfig.authHeader.toLowerCase()] = vendorConfig.authFormat(apiKey);
     }
 
+    // Skip forceNonStreaming for naturally non-streaming endpoints (embeddings, model info)
+    const isNonStreamingEndpoint = path.includes('/embeddings') || 
+                                    path.includes('/api/tags') ||
+                                    path.includes('/api/show');
+    const shouldForceNonStreaming = forceNonStreaming && !isNonStreamingEndpoint;
+
     // Handle forceNonStreaming: strip stream:true from request body
     let finalBody = body;
     let wasStreaming = false;
-    if (forceNonStreaming && body) {
+    if (shouldForceNonStreaming && body) {
       try {
         const json = JSON.parse(body.toString('utf8')) as Record<string, unknown>;
         if (json.stream === true) {

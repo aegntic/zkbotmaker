@@ -12,15 +12,15 @@ services:
     profiles: ["https"]   # Optional HTTPS reverse proxy (requires Caddyfile)
     image: caddy:2-alpine
     container_name: caddy
-    ports:
-      - "80:80"
-      - "443:443"
+    network_mode: host    # Avoids 100+ docker-proxy processes for port range
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PUBLIC_HOST=${PUBLIC_HOST:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-    networks:
-      - bm-internal
     restart: unless-stopped
     depends_on:
       - botmaker
@@ -53,6 +53,9 @@ services:
       - PROXY_ADMIN_TOKEN_FILE=/secrets/proxy_admin_token
       # Dashboard login password (file-based, minimum 12 characters)
       - ADMIN_PASSWORD_FILE=/secrets/admin_password
+      # HTTPS configuration (set when using https profile)
+      - CADDY_ENABLED=${CADDY_ENABLED:-false}
+      - PUBLIC_HOST=${PUBLIC_HOST:-}
     depends_on:
       - keyring-proxy
     networks:
