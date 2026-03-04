@@ -135,6 +135,40 @@ export class CaddyService {
   }
 
   /**
+   * Restore Caddy routes for all running bots.
+   * Called on startup to re-register dynamic routes lost during Caddy restart.
+   *
+   * @param bots - List of running bots with hostname and port
+   * @param internalPort - Internal port that OpenClaw listens on (e.g., 8080)
+   * @param logger - Logger for status messages
+   * @returns Number of routes successfully restored
+   */
+  async restoreRoutes(
+    bots: Array<{ hostname: string; port: number }>,
+    internalPort: number,
+    logger: { info: (msg: string | object, ...args: unknown[]) => void; warn: (msg: string | object, ...args: unknown[]) => void },
+  ): Promise<number> {
+    if (bots.length === 0) return 0;
+
+    if (!await this.isAvailable()) {
+      logger.warn('Caddy admin API not available — skipping route restoration');
+      return 0;
+    }
+
+    let restored = 0;
+    for (const bot of bots) {
+      try {
+        await this.addBotRoute(bot.hostname, bot.port, internalPort);
+        restored++;
+      } catch (err) {
+        const error = err as { message?: string };
+        logger.warn({ hostname: bot.hostname, error: error.message }, 'Failed to restore Caddy route');
+      }
+    }
+    return restored;
+  }
+
+  /**
    * Remove the HTTPS listener for a bot gateway.
    * Deletes the server entry from Caddy config.
    *

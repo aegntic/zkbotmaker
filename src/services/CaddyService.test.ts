@@ -118,6 +118,96 @@ describe('CaddyService', () => {
     });
   });
 
+  describe('restoreRoutes', () => {
+    const mockLogger = { info: vi.fn(), warn: vi.fn() };
+
+    it('should restore routes for all running bots', async () => {
+      const dockerInstance = (await import('dockerode')).default;
+      const mockContainer = {
+        inspect: vi.fn().mockResolvedValue({
+          NetworkSettings: {
+            Networks: {
+              'bm-internal': { IPAddress: '172.18.0.5' },
+            },
+          },
+        }),
+      };
+      vi.mocked(dockerInstance).mockImplementation(() => ({
+        getContainer: vi.fn().mockReturnValue(mockContainer),
+      }) as unknown as InstanceType<typeof dockerInstance>);
+
+      caddy = new CaddyService('us1.example.com');
+
+      // isAvailable check + two addBotRoute calls
+      mockFetch
+        .mockResolvedValueOnce({ ok: true })   // isAvailable
+        .mockResolvedValueOnce({ ok: true })   // addBotRoute for alice
+        .mockResolvedValueOnce({ ok: true });  // addBotRoute for bob
+
+      const bots = [
+        { hostname: 'alice', port: 19000 },
+        { hostname: 'bob', port: 19001 },
+      ];
+
+      const restored = await caddy.restoreRoutes(bots, 8080, mockLogger);
+
+      expect(restored).toBe(2);
+      // isAvailable + 2 addBotRoute PUTs
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('should return 0 when no bots to restore', async () => {
+      const restored = await caddy.restoreRoutes([], 8080, mockLogger);
+      expect(restored).toBe(0);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should skip when Caddy is unavailable', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      const bots = [{ hostname: 'alice', port: 19000 }];
+      const restored = await caddy.restoreRoutes(bots, 8080, mockLogger);
+
+      expect(restored).toBe(0);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Caddy admin API not available — skipping route restoration',
+      );
+    });
+
+    it('should continue restoring when one bot fails', async () => {
+      const dockerInstance = (await import('dockerode')).default;
+      vi.mocked(dockerInstance).mockImplementation(() => ({
+        getContainer: vi.fn().mockReturnValue({
+          inspect: vi.fn()
+            .mockRejectedValueOnce(new Error('no such container'))  // alice fails
+            .mockResolvedValueOnce({                                 // bob succeeds
+              NetworkSettings: {
+                Networks: { 'bm-internal': { IPAddress: '172.18.0.6' } },
+              },
+            }),
+        }),
+      }) as unknown as InstanceType<typeof dockerInstance>);
+
+      caddy = new CaddyService('us1.example.com');
+
+      mockFetch
+        .mockResolvedValueOnce({ ok: true })   // isAvailable
+        .mockResolvedValueOnce({ ok: true });  // addBotRoute for bob
+
+      const bots = [
+        { hostname: 'alice', port: 19000 },
+        { hostname: 'bob', port: 19001 },
+      ];
+      const restored = await caddy.restoreRoutes(bots, 8080, mockLogger);
+
+      expect(restored).toBe(1);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ hostname: 'alice' }),
+        'Failed to restore Caddy route',
+      );
+    });
+  });
+
   describe('removeBotRoute', () => {
     it('should send DELETE to Caddy admin API', async () => {
       mockFetch.mockResolvedValueOnce({ ok: true });

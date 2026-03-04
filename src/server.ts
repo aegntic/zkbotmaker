@@ -361,6 +361,17 @@ export async function buildServer(): Promise<FastifyInstance> {
   const report = await reconciliation.reconcileOnStartup();
   server.log.info({ report }, 'Startup reconciliation complete');
 
+  // Restore Caddy routes for running bots (dynamic routes are lost on Caddy restart)
+  if (config.caddyEnabled && config.publicHost) {
+    const runningBots = listBots()
+      .filter(b => b.status === 'running' && b.port != null)
+      .map(b => ({ hostname: b.hostname, port: b.port as number }));
+    const restored = await getCaddy(config.publicHost).restoreRoutes(
+      runningBots, BOT_INTERNAL_PORT, server.log,
+    );
+    server.log.info({ restored, total: runningBots.length }, 'Caddy route restoration complete');
+  }
+
   // Health check (rate limiting disabled for monitoring/load balancers)
   server.get('/health', { config: { rateLimit: false } }, () => {
     return { status: 'ok', timestamp: new Date().toISOString() };
