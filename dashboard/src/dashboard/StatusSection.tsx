@@ -10,6 +10,7 @@ interface StatusSectionProps {
   onStart: (hostname: string) => void;
   onStop: (hostname: string) => void;
   onDelete: (hostname: string) => void;
+  onPair: (hostname: string, code: string) => Promise<void>;
   loading: boolean;
   defaultExpanded?: boolean;
 }
@@ -28,6 +29,7 @@ export function StatusSection({
   onStart,
   onStop,
   onDelete,
+  onPair,
   loading,
   defaultExpanded = true,
 }: StatusSectionProps) {
@@ -70,6 +72,7 @@ export function StatusSection({
                 onStart={onStart}
                 onStop={onStop}
                 onDelete={onDelete}
+                onPair={onPair}
                 loading={loading}
               />
             ))}

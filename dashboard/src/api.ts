@@ -179,6 +179,15 @@ export async function fetchProxyHealth(): Promise<ProxyHealthResponse> {
   return handleResponse<ProxyHealthResponse>(response);
 }
 
+export async function pairBot(hostname: string, code: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE}/bots/${hostname}/pair`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ code }),
+  });
+  return handleResponse<{ success: boolean; message: string }>(response);
+}
+
 export async function fetchDynamicModels(baseUrl: string, apiKey?: string): Promise<string[]> {
   const body: { baseUrl: string; apiKey?: string } = { baseUrl };
   if (apiKey) {

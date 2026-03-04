@@ -1,4 +1,4 @@
-import type { SessionScope, CreateBotInput } from '../../types';
+import type { SessionScope, ToolsProfile, StreamingMode, CreateBotInput } from '../../types';
 
 export interface WizardState {
   selectedTemplateId: string | null;
@@ -18,8 +18,11 @@ export interface WizardState {
     sandbox: boolean;
     sandboxTimeout: number;
     sessionScope: SessionScope;
+    toolsProfile: ToolsProfile;
+    telegramStreaming: StreamingMode;
+    discordStreaming: StreamingMode;
   };
-  providerConfigs: Record<string, { model?: string; baseUrl?: string } | undefined>;
+  providerConfigs: Record<string, { model?: string; baseUrl?: string; apiKey?: string } | undefined>;
   channelConfigs: Record<string, { token: string } | undefined>;
 }
 
@@ -64,7 +67,10 @@ export function validatePage(page: number, state: WizardState): ValidationResult
       return { valid: true };
 
     case 3:
-      // Config details
+      // Config details - provider API keys are not validated here because they
+      // may already exist in keyring-proxy. Page 5 (Summary) warns about missing
+      // keys and provides an "Add" flow.
+      // Check channel tokens
       for (const channelId of state.enabledChannels) {
         const config = state.channelConfigs[channelId];
         if (!config?.token.trim()) {
@@ -83,11 +89,16 @@ export function validatePage(page: number, state: WizardState): ValidationResult
 }
 
 export function buildCreateBotInput(state: WizardState): CreateBotInput {
-  const providers = state.enabledProviders.map((providerId) => ({
-    providerId,
-    model: state.providerConfigs[providerId]?.model ?? '',
-    baseUrl: state.providerConfigs[providerId]?.baseUrl,
-  }));
+  const providers = state.enabledProviders.map((providerId) => {
+    const cfg = state.providerConfigs[providerId];
+    const entry: { providerId: string; model: string; baseUrl?: string; apiKey?: string } = {
+      providerId,
+      model: cfg?.model ?? '',
+    };
+    if (cfg?.baseUrl) entry.baseUrl = cfg.baseUrl;
+    if (cfg?.apiKey) entry.apiKey = cfg.apiKey;
+    return entry;
+  });
 
   const channels = state.enabledChannels.map((channelType) => ({
     channelType,
@@ -113,6 +124,9 @@ export function buildCreateBotInput(state: WizardState): CreateBotInput {
       sandbox: state.features.sandbox,
       sandboxTimeout: state.features.sandbox ? state.features.sandboxTimeout : undefined,
       sessionScope: state.features.sessionScope,
+      toolsProfile: state.features.toolsProfile,
+      telegramStreaming: state.features.telegramStreaming,
+      discordStreaming: state.features.discordStreaming,
     },
     tags: state.routingTags.length > 0 ? state.routingTags : undefined,
   };

@@ -6,6 +6,7 @@ import {
   deleteBot,
   startBot,
   stopBot,
+  pairBot,
   fetchContainerStats,
   fetchOrphans,
   runCleanup,
@@ -104,7 +105,7 @@ describe('API Client', () => {
         primaryProvider: 'openai',
         channels: [{ channelType: 'telegram', token: 'tk' }],
         persona: { name: 'New Bot', soulMarkdown: 'test' },
-        features: { commands: false, tts: false, sandbox: false, sessionScope: 'user' as const },
+        features: { commands: false, tts: false, sandbox: false, sessionScope: 'user' as const, toolsProfile: 'messaging' as const, telegramStreaming: 'off' as const, discordStreaming: 'off' as const },
       };
       const createdBot = { id: '1', ...input };
 
@@ -166,6 +167,34 @@ describe('API Client', () => {
         method: 'POST',
         headers: AUTH_HEADER,
       });
+    });
+  });
+
+  describe('pairBot', () => {
+    it('should send pairing code and return result', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true, message: 'Pairing code approved' }),
+      });
+
+      const result = await pairBot('bot-1', 'ABCD2345');
+
+      expect(result).toEqual({ success: true, message: 'Pairing code approved' });
+      expect(mockFetch).toHaveBeenCalledWith('/api/bots/bot-1/pair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...AUTH_HEADER },
+        body: JSON.stringify({ code: 'ABCD2345' }),
+      });
+    });
+
+    it('should throw on error response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: () => Promise.resolve({ error: 'Invalid pairing code' }),
+      });
+
+      await expect(pairBot('bot-1', 'BADCODE')).rejects.toThrow('Invalid pairing code');
     });
   });
 

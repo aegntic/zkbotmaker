@@ -21,6 +21,9 @@ function createDefaultState(): WizardState {
       sandbox: false,
       sandboxTimeout: 30,
       sessionScope: 'user',
+      toolsProfile: 'messaging',
+      telegramStreaming: 'off',
+      discordStreaming: 'off',
     },
     providerConfigs: {},
     channelConfigs: {},
@@ -141,17 +144,7 @@ describe('validatePage', () => {
   });
 
   describe('page 3 (Config)', () => {
-    it('should require token for each enabled channel', () => {
-      const state = createDefaultState();
-      state.enabledProviders = ['openai'];
-      state.enabledChannels = ['telegram'];
-      state.providerConfigs = { openai: { model: 'gpt-4' } };
-      const result = validatePage(3, state);
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Token required for telegram');
-    });
-
-    it('should be valid with all configs provided', () => {
+    it('should not require API keys (may exist in keyring-proxy)', () => {
       const state = createDefaultState();
       state.enabledProviders = ['openai'];
       state.enabledChannels = ['telegram'];
@@ -161,18 +154,22 @@ describe('validatePage', () => {
       expect(result.valid).toBe(true);
     });
 
-    it('should validate multiple providers and channels', () => {
+    it('should require token for each enabled channel', () => {
       const state = createDefaultState();
-      state.enabledProviders = ['openai', 'anthropic'];
-      state.enabledChannels = ['telegram', 'discord'];
-      state.providerConfigs = {
-        openai: { model: 'gpt-4' },
-        anthropic: { model: 'claude-3' },
-      };
-      state.channelConfigs = {
-        telegram: { token: 'tg-token' },
-        discord: { token: 'dc-token' },
-      };
+      state.enabledProviders = ['openai'];
+      state.enabledChannels = ['telegram'];
+      state.providerConfigs = { openai: { model: 'gpt-4', apiKey: 'sk-test-key' } };
+      const result = validatePage(3, state);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Token required for telegram');
+    });
+
+    it('should be valid with all configs provided', () => {
+      const state = createDefaultState();
+      state.enabledProviders = ['openai'];
+      state.enabledChannels = ['telegram'];
+      state.providerConfigs = { openai: { model: 'gpt-4', apiKey: 'sk-test-key' } };
+      state.channelConfigs = { telegram: { token: 'bot-token' } };
       const result = validatePage(3, state);
       expect(result.valid).toBe(true);
     });
@@ -228,6 +225,9 @@ describe('buildCreateBotInput', () => {
         sandbox: false,
         sandboxTimeout: undefined,
         sessionScope: 'user',
+        toolsProfile: 'messaging',
+        telegramStreaming: 'off',
+        discordStreaming: 'off',
       },
       tags: undefined,
     });

@@ -19,6 +19,8 @@ describe('Config', () => {
     delete process.env.PROXY_ADMIN_TOKEN_FILE;
     delete process.env.ADMIN_PASSWORD;
     delete process.env.ADMIN_PASSWORD_FILE;
+    delete process.env.PUBLIC_HOST;
+    delete process.env.CADDY_ENABLED;
 
     // Set valid admin password for tests (required, min 12 chars)
     process.env.ADMIN_PASSWORD = 'test-password-12chars';
@@ -138,5 +140,65 @@ describe('Config', () => {
     const { getConfig } = await import('./config.js');
     const config = getConfig();
     expect(config.adminPassword).toBe('valid-password-12');
+  });
+
+  describe('PUBLIC_HOST normalization', () => {
+    it('should normalize empty PUBLIC_HOST to null', async () => {
+      const { getConfig } = await import('./config.js');
+      // Clear after import (dotenv may re-read .env on fresh import)
+      process.env.PUBLIC_HOST = '';
+      delete process.env.CADDY_ENABLED;
+      const config = getConfig();
+      expect(config.publicHost).toBeNull();
+    });
+
+    it('should normalize whitespace-only PUBLIC_HOST to null', async () => {
+      const { getConfig } = await import('./config.js');
+      process.env.PUBLIC_HOST = '   ';
+      delete process.env.CADDY_ENABLED;
+      const config = getConfig();
+      expect(config.publicHost).toBeNull();
+    });
+
+    it('should preserve valid PUBLIC_HOST', async () => {
+      const { getConfig } = await import('./config.js');
+      process.env.PUBLIC_HOST = 'us1.example.com';
+      delete process.env.CADDY_ENABLED;
+      const config = getConfig();
+      expect(config.publicHost).toBe('us1.example.com');
+    });
+
+    it('should trim whitespace from valid PUBLIC_HOST', async () => {
+      const { getConfig } = await import('./config.js');
+      process.env.PUBLIC_HOST = '  us1.example.com  ';
+      delete process.env.CADDY_ENABLED;
+      const config = getConfig();
+      expect(config.publicHost).toBe('us1.example.com');
+    });
+  });
+
+  describe('CADDY_ENABLED validation', () => {
+    it('should throw when CADDY_ENABLED=true without PUBLIC_HOST', async () => {
+      const { getConfig } = await import('./config.js');
+      process.env.CADDY_ENABLED = 'true';
+      delete process.env.PUBLIC_HOST;
+      expect(() => getConfig()).toThrow('PUBLIC_HOST is required when CADDY_ENABLED=true');
+    });
+
+    it('should not throw when CADDY_ENABLED=true with PUBLIC_HOST', async () => {
+      const { getConfig } = await import('./config.js');
+      process.env.CADDY_ENABLED = 'true';
+      process.env.PUBLIC_HOST = 'us1.example.com';
+      const config = getConfig();
+      expect(config.caddyEnabled).toBe(true);
+      expect(config.publicHost).toBe('us1.example.com');
+    });
+
+    it('should default caddyEnabled to false', async () => {
+      const { getConfig } = await import('./config.js');
+      delete process.env.CADDY_ENABLED;
+      const config = getConfig();
+      expect(config.caddyEnabled).toBe(false);
+    });
   });
 });

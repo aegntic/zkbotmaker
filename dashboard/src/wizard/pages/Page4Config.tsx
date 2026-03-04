@@ -40,8 +40,10 @@ export function Page4Config() {
 
   // Track per-provider base URL overrides (for baseUrlEditable providers)
   const [baseUrls, setBaseUrls] = useState<Record<string, string>>({});
-  // Track per-provider API key for dynamic model fetching
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+
+  const handleApiKeyChange = (providerId: string, apiKey: string) => {
+    dispatch({ type: 'SET_PROVIDER_CONFIG', providerId, config: { apiKey } });
+  };
 
   const handleModelChange = (providerId: string, model: string) => {
     dispatch({ type: 'SET_PROVIDER_CONFIG', providerId, config: { model } });
@@ -84,10 +86,8 @@ export function Page4Config() {
                     setBaseUrls((prev) => ({ ...prev, [providerId]: url }));
                     dispatch({ type: 'SET_PROVIDER_CONFIG', providerId, config: { baseUrl: url } });
                   }}
-                  apiKey={apiKeys[providerId] ?? ''}
-                  onApiKeyChange={(key) => {
-                    setApiKeys((prev) => ({ ...prev, [providerId]: key }));
-                  }}
+                  apiKey={state.providerConfigs[providerId]?.apiKey ?? ''}
+                  onApiKeyChange={(key) => { handleApiKeyChange(providerId, key); }}
                   model={state.providerConfigs[providerId]?.model ?? ''}
                   onModelChange={(model) => { handleModelChange(providerId, model); }}
                 />
@@ -96,6 +96,7 @@ export function Page4Config() {
 
             const models = getModels(providerId);
             const config = state.providerConfigs[providerId] ?? { model: '' };
+            const needsApiKey = !provider?.noAuth;
 
             return (
               <ConfigSection
@@ -104,6 +105,23 @@ export function Page4Config() {
                 title={provider?.label ?? providerId}
                 hint={provider?.baseUrl}
               >
+                {/* API Key - show if provider needs auth */}
+                {needsApiKey && (
+                  <div className="wizard-form-group">
+                    <label className="wizard-label">API Key</label>
+                    <input
+                      type="password"
+                      className="wizard-input"
+                      value={state.providerConfigs[providerId]?.apiKey ?? ''}
+                      onChange={(e) => { handleApiKeyChange(providerId, e.target.value); }}
+                      placeholder={provider?.keyHint ?? 'API key required'}
+                    />
+                    <span className="page4-key-hint">
+                      API key will be securely stored in the keyring proxy
+                    </span>
+                  </div>
+                )}
+
                 <div className="wizard-form-group">
                   <label className="wizard-label">Model</label>
                   <select

@@ -25,11 +25,21 @@ function tryChown(path: string, uid: number, gid: number): boolean {
 const OPENCLAW_UID = 1000;
 const OPENCLAW_GID = 1000;
 
+/**
+ * Internal port that all bot containers listen on.
+ * This is the port OpenClaw gateway binds to inside the container.
+ * External access is via unique ports (19000+) proxied by Caddy.
+ */
+export const BOT_INTERNAL_PORT = 8080;
+
 function setOwnership(path: string, mode: number): void {
   const owned = tryChown(path, OPENCLAW_UID, OPENCLAW_GID);
   // If chown failed, widen permissions so container UID 1000 can still write
   chmodSync(path, owned ? mode : mode | 0o022);
 }
+
+export type ToolsProfile = 'minimal' | 'messaging' | 'coding' | 'full';
+export type StreamingMode = 'off' | 'partial';
 
 export interface BotPersona {
   name: string;
@@ -38,7 +48,7 @@ export interface BotPersona {
 }
 
 export interface ChannelConfig {
-  type: 'telegram' | 'discord';
+  type: string;  // Support all OpenClaw channels
   token: string;
 }
 
@@ -47,16 +57,25 @@ export interface ProxyConfig {
   token: string;
 }
 
+export interface BotFeatures {
+  toolsProfile: ToolsProfile;
+  telegramStreaming: StreamingMode;
+  discordStreaming: StreamingMode;
+}
+
 export interface BotWorkspaceConfig {
   botId: string;
   botHostname: string;
   botName: string;
   aiProvider: string;
   model: string;
-  channel: ChannelConfig;
+  channels: ChannelConfig[];  // Support multiple channels
   persona: BotPersona;
   port: number;
   proxy?: ProxyConfig;
+  features: BotFeatures;
+  publicHost?: string;  // Public hostname for CORS allowedOrigins
+  gatewayToken?: string;  // Auth token for Control UI access
 }
 
 /**
@@ -128,9 +147,16 @@ export const EMBEDDING_MODELS: Record<string, string | null> = {
   ovhcloud: null,
 };
 
+export type MemorySearchProvider = 'openai' | 'gemini' | 'local' | 'voyage' | 'mistral' | 'ollama';
+
 export type MemorySearchConfig =
   | { enabled: false }
-  | { provider: 'openai'; model: string; remote: { baseUrl: string; apiKey: string } };
+  | {
+      provider: MemorySearchProvider;
+      model: string;
+      remote: { baseUrl: string; apiKey: string };
+      fallback?: MemorySearchProvider | 'none';
+    };
 
 /**
  * Build memorySearch config for openclaw.json.
@@ -147,13 +173,18 @@ export function getMemorySearchConfig(
     return { enabled: false };
   }
 
+  // Ollama uses native provider type (OpenClaw 2026.3.2+)
+  // Others use openai-compatible endpoint
+  const memoryProvider: MemorySearchProvider = provider === 'ollama' ? 'ollama' : 'openai';
+
   return {
-    provider: 'openai',
+    provider: memoryProvider,
     model: embeddingModel,
     remote: {
       baseUrl: proxy.baseUrl,
       apiKey: proxy.token,
     },
+    fallback: 'none',  // Explicit - no silent fallback
   };
 }
 
@@ -189,23 +220,79 @@ function generateOpenclawConfig(config: BotWorkspaceConfig): object {
     modelsConfig = undefined;
   }
 
+  // Build channel configurations with smart defaults
+  const channels: Record<string, unknown> = {};
+  
+  for (const channel of config.channels) {
+    if (channel.type === 'telegram') {
+      channels.telegram = {
+        enabled: true,
+        // Token is stored in secrets volume, mounted at /run/secrets in container
+        tokenFile: '/run/secrets/TELEGRAM_TOKEN',
+        streaming: config.features.telegramStreaming,  // Default 'off': "partial" causes duplicate messages via lane rotation
+        dmPolicy: 'pairing',
+        groupPolicy: 'allowlist',
+        reactionLevel: 'ack',
+        ackReaction: '👀',
+        textChunkLimit: 4000,
+        historyLimit: 50,
+      };
+    } else if (channel.type === 'discord') {
+      channels.discord = {
+        enabled: true,
+        streaming: config.features.discordStreaming,  // Default 'off': "partial" causes duplicate messages via lane rotation
+        dmPolicy: 'pairing',
+        groupPolicy: 'allowlist',
+        textChunkLimit: 2000,
+        maxLinesPerMessage: 17,
+        eventQueue: {
+          listenerTimeout: 120000,  // 2 min for long LLM calls
+        },
+      };
+    } else {
+      // Other channels: minimal config, OpenClaw handles defaults
+      channels[channel.type] = {
+        enabled: true,
+      };
+    }
+  }
+
   return {
     gateway: {
       mode: 'local',
-      port: config.port,
+      // Internal port - all bots use same port inside container
+      // External access is via unique ports (19000+) proxied by Caddy
+      port: BOT_INTERNAL_PORT,
       bind: 'lan',
       auth: {
         mode: 'token',
+        // Explicit token so BotMaker dashboard can link with auth
+        ...(config.gatewayToken && { token: config.gatewayToken }),
       },
       controlUi: {
         allowInsecureAuth: true,
+        // Skip device pairing for Control UI connections with valid gateway token.
+        // BotMaker always uses token auth, and the token is included in the dashboard
+        // link URL. Device pairing is redundant when shared auth (token) is present.
+        // The "dangerous" label is misleading - it's safe when combined with token auth.
+        dangerouslyDisableDeviceAuth: true,
+        // Include public hostname for CORS (OpenClaw auto-seeds localhost/127.0.0.1)
+        // Use config.port for external-facing origins (the unique port per bot)
+        ...(config.publicHost && {
+          allowedOrigins: [
+            `http://localhost:${config.port}`,
+            `http://127.0.0.1:${config.port}`,
+            `http://${config.publicHost}:${config.port}`,
+            `https://${config.publicHost}:${config.port}`,  // Port-based HTTPS via Caddy
+          ]
+        }),
       },
     },
-    channels: {
-      [config.channel.type]: {
-        enabled: true,
-      },
+    // NEW: Tools profile (OpenClaw 2026.3.2+ defaults to "messaging")
+    tools: {
+      profile: config.features.toolsProfile,
     },
+    channels,
     agents: {
       defaults: {
         model: {

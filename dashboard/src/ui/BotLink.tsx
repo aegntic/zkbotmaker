@@ -3,6 +3,7 @@ import './BotLink.css';
 interface BotLinkProps {
   port: number;
   hostname?: string;
+  gatewayToken?: string | null;
   disabled?: boolean;
 }
 
@@ -24,9 +25,13 @@ function getLanHost(fallback?: string): string {
   return host;
 }
 
-export function BotLink({ port, hostname, disabled }: BotLinkProps) {
+export function BotLink({ port, hostname, gatewayToken, disabled }: BotLinkProps) {
   const host = getLanHost(hostname);
-  const url = `http://${host}:${port}/`;
+  // Match protocol of the current page to avoid incorrect HTTPS/HTTP guesses
+  const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+  const baseUrl = `${protocol}://${host}:${port}/`;
+  // Include gateway token for Control UI auth (skips device pairing)
+  const url = gatewayToken ? `${baseUrl}#token=${encodeURIComponent(gatewayToken)}` : baseUrl;
 
   if (disabled) {
     return (

@@ -8,6 +8,23 @@ services:
         BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:latest}
     image: ${BOTENV_IMAGE:-botmaker-env:latest}
 
+  caddy:
+    profiles: ["https"]   # Optional HTTPS reverse proxy (requires Caddyfile)
+    image: caddy:2-alpine
+    container_name: caddy
+    network_mode: host    # Avoids 100+ docker-proxy processes for port range
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PUBLIC_HOST=${PUBLIC_HOST:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    depends_on:
+      - botmaker
+
   botmaker:
     build: .
     container_name: botmaker
@@ -36,6 +53,9 @@ services:
       - PROXY_ADMIN_TOKEN_FILE=/secrets/proxy_admin_token
       # Dashboard login password (file-based, minimum 12 characters)
       - ADMIN_PASSWORD_FILE=/secrets/admin_password
+      # HTTPS configuration (set when using https profile)
+      - CADDY_ENABLED=${CADDY_ENABLED:-false}
+      - PUBLIC_HOST=${PUBLIC_HOST:-}
     depends_on:
       - keyring-proxy
     networks:
@@ -82,3 +102,5 @@ volumes:
   botmaker-data:
   botmaker-secrets:
   proxy-data:
+  caddy-data:
+  caddy-config:

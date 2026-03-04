@@ -203,3 +203,116 @@
   border: 1px solid var(--accent-primary);
   color: var(--accent-primary);
 }
+
+/* Missing API Keys Warning */
+.page5-missing-keys {
+  padding: var(--space-md);
+  background: rgba(255, 180, 50, 0.1);
+  border: 1px solid rgba(255, 180, 50, 0.3);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
+}
+
+.page5-missing-keys-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 600;
+  font-size: 14px;
+  color: #f5a623;
+  margin-bottom: var(--space-sm);
+}
+
+.page5-missing-keys-header svg {
+  flex-shrink: 0;
+}
+
+.page5-missing-keys-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.page5-key-error {
+  padding: var(--space-sm);
+  background: rgba(255, 80, 80, 0.1);
+  border: 1px solid rgba(255, 80, 80, 0.3);
+  border-radius: var(--radius-sm);
+  color: #ff5050;
+  font-size: 12px;
+  margin-bottom: var(--space-sm);
+}
+
+.page5-missing-keys-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.page5-missing-key-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  background: var(--bg-panel);
+  border-radius: var(--radius-sm);
+}
+
+.page5-missing-key-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.page5-missing-key-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.page5-missing-key-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.page5-missing-key-input {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.page5-missing-key-input input {
+  flex: 1;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.page5-missing-key-input input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.page5-missing-key-input button {
+  padding: var(--space-xs) var(--space-md);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.page5-missing-key-input button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.page5-missing-key-input button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

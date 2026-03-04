@@ -55,3 +55,10 @@
 .page4-refresh-btn:hover {
   background: var(--bg-hover, #333);
 }
+
+.page4-key-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+}

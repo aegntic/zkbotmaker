@@ -56,6 +56,8 @@ export interface CleanupReport {
 }
 
 export type SessionScope = 'user' | 'channel' | 'global';
+export type ToolsProfile = 'minimal' | 'messaging' | 'coding' | 'full';
+export type StreamingMode = 'off' | 'partial';
 
 export interface WizardFeatures {
   commands: boolean;
@@ -64,12 +66,17 @@ export interface WizardFeatures {
   sandbox: boolean;
   sandboxTimeout?: number;
   sessionScope: SessionScope;
+  // NEW: OpenClaw 2026.3.x features
+  toolsProfile: ToolsProfile;
+  telegramStreaming: StreamingMode;
+  discordStreaming: StreamingMode;
 }
 
 export interface ProviderConfigInput {
   providerId: string;
   model: string;
   baseUrl?: string;  // For direct providers — written to workspace config
+  apiKey?: string;   // For providers that need auth — stored in keyring proxy
 }
 
 export interface ChannelConfigInput {

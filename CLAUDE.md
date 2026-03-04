@@ -113,18 +113,37 @@ Direct SQL via better-sqlite3 (no ORM). Two separate SQLite databases:
 - Optional: enabled by `OLLAMA_UPSTREAM` env var on keyring-proxy
 - Uses `noAuth: true` + `forceNonStreaming: true` (OpenClaw can't parse streaming tool-call deltas)
 - Bots address it identically to cloud: `http://keyring-proxy:9101/v1/ollama`
+- Supports both OpenAI-compatible paths (`/v1/*`) and native Ollama paths (`/api/embeddings`, `/api/chat`)
 - Context window set via `OLLAMA_CONTEXT_LENGTH` env var on Ollama container
 
-## Known Issue: memorySearch
+### OpenClaw 2026.3.x Updates
 
-OpenClaw's memorySearch auto-discovery looks for providers named exactly
-`"openai"` or `"gemini"`. Our `-proxy` suffix means auto-discovery always
-fails. The template generator must explicitly produce a `memorySearch`
-section in openclaw.json pointing at the correct keyring-proxy embedding
-endpoint, or explicitly disable it for providers without embedding support.
+BotMaker has been updated for OpenClaw 2026.3.2+:
 
-~13/22 providers support OpenAI-compatible `/embeddings`; the rest
-(anthropic, groq, cerebras, perplexity, moonshot) need `enabled: false`.
+**Tools Profile (BREAKING):**
+- OpenClaw 2026.3.2 changed default `tools.profile` from implicit "full" to `"messaging"`
+- BotMaker wizard exposes 3 profiles:
+  - **Chat Bot** (`messaging`) - Send messages, view history. Safe for public use.
+  - **Developer Assistant** (`coding`) - File access, shell commands, memory search
+  - **Full Access** (`full`) - All tools including web browsing and automation
+- Default: `messaging` (matches OpenClaw's new safe default)
+
+**Telegram Configuration:**
+- `streaming: "off"` (default) - Wait for full response before sending (avoids duplicate messages from streaming lane rotation)
+- `dmPolicy: "pairing"` - Unknown users must be approved
+- `groupPolicy: "allowlist"` - Groups must be explicitly allowed
+- `reactionLevel: "ack"` - Bot acknowledges with 👀 while processing
+
+**Discord Configuration:**
+- `streaming: "off"` (default) - Wait for full response before sending (avoids duplicate messages from streaming lane rotation)
+- `eventQueue.listenerTimeout: 120000` - 2-minute timeout to prevent killing long LLM calls
+- `dmPolicy: "pairing"` + `groupPolicy: "allowlist"` for safety
+
+**Memory Search:**
+- Ollama now uses `provider: "ollama"` natively (OpenClaw 2026.3.2+)
+- Other providers use `provider: "openai"` for OpenAI-compatible endpoints
+- `fallback: "none"` explicitly set (no silent fallbacks)
+- ~13/22 providers support embeddings; rest get `enabled: false`
 
 ## CI
 

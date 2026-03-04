@@ -87,6 +87,110 @@
   border-bottom: 1px solid var(--border-color-subtle);
 }
 
+/* Pairing section */
+.bot-card-pairing {
+  border-top: 1px solid var(--border-color-subtle);
+  padding-top: var(--space-sm);
+}
+
+.bot-card-pairing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: var(--space-xs) 0;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.bot-card-pairing-header:hover {
+  color: var(--text-secondary);
+}
+
+.bot-card-pairing-title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.bot-card-pairing-chevron {
+  transition: transform 0.2s ease;
+}
+
+.bot-card-pairing-chevron--expanded {
+  transform: rotate(180deg);
+}
+
+.bot-card-pairing-body {
+  padding: var(--space-sm) 0 var(--space-xs);
+}
+
+.bot-card-pairing-input-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.bot-card-pairing-input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bot-card-pairing-input::placeholder {
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.bot-card-pairing-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.bot-card-pairing-input--error {
+  animation: pairing-error-flash 0.4s ease;
+  border-color: var(--color-danger);
+}
+
+.bot-card-pairing-input--success {
+  color: var(--color-success);
+  border-color: var(--color-success);
+  animation: pairing-success-flash 0.6s ease;
+}
+
+.bot-card-pairing-error {
+  font-size: 11px;
+  color: var(--color-danger);
+  margin-top: var(--space-xs);
+}
+
+@keyframes pairing-success-flash {
+  0% { text-shadow: 0 0 8px var(--color-success); }
+  100% { text-shadow: none; }
+}
+
+@keyframes pairing-error-flash {
+  0%, 100% { border-color: var(--color-danger); }
+  50% { border-color: transparent; }
+}
+
 /* Actions */
 .bot-card-actions {
   display: flex;

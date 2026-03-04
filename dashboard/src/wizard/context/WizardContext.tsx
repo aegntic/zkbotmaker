@@ -25,7 +25,7 @@ type WizardAction =
   | { type: 'TOGGLE_CHANNEL'; channelId: string }
   | { type: 'SET_ROUTING_TAGS'; tags: string[] }
   | { type: 'SET_FEATURE'; feature: keyof WizardState['features']; value: unknown }
-  | { type: 'SET_PROVIDER_CONFIG'; providerId: string; config: { model?: string; baseUrl?: string } }
+  | { type: 'SET_PROVIDER_CONFIG'; providerId: string; config: { model?: string; baseUrl?: string; apiKey?: string } }
   | { type: 'SET_CHANNEL_CONFIG'; channelId: string; config: { token: string } }
   | { type: 'RESET' };
 
@@ -47,6 +47,10 @@ const initialState: WizardState = {
     sandbox: false,
     sandboxTimeout: 30,
     sessionScope: 'user',
+    // NEW: Smart defaults for OpenClaw 2026.3.x
+    toolsProfile: 'messaging',     // Safe default (OpenClaw 2026.3.2+)
+    telegramStreaming: 'off',      // Avoids duplicate messages from streaming lane rotation
+    discordStreaming: 'off',       // Avoids duplicate messages from streaming lane rotation
   },
   providerConfigs: {},
   channelConfigs: {},

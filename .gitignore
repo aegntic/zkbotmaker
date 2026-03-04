@@ -10,6 +10,9 @@ data/
 !dashboard/src/wizard/data/
 /secrets/
 
+# Site-specific configuration
+Caddyfile
+
 # Environment
 .env
 .env.local

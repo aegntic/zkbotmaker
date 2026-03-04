@@ -3,7 +3,7 @@ import { useWizard } from '../context/WizardContext';
 import { PROVIDERS, PROVIDER_CATEGORIES } from '../../config/providers';
 import { POPULAR_CHANNELS, OTHER_CHANNELS } from '../../config/channels';
 import { FeatureCheckbox } from '../components';
-import type { SessionScope } from '../../types';
+import type { SessionScope, ToolsProfile } from '../../types';
 import './Page3Toggles.css';
 
 const ALWAYS_VISIBLE_CATEGORIES = ['major', 'local'];
@@ -46,6 +46,10 @@ export function Page3Toggles() {
 
   const handleSessionScopeChange = (scope: SessionScope) => {
     dispatch({ type: 'SET_FEATURE', feature: 'sessionScope', value: scope });
+  };
+
+  const handleToolsProfileChange = (profile: ToolsProfile) => {
+    dispatch({ type: 'SET_FEATURE', feature: 'toolsProfile', value: profile });
   };
 
   const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,6 +186,59 @@ export function Page3Toggles() {
                 <span className="page3-radio-text">{scope}</span>
               </label>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="page3-section">
+        <h4 className="page3-section-title">Bot Capabilities</h4>
+        <p className="page3-section-hint">
+          Choose what tools your bot can use. This affects security and functionality.
+        </p>
+        <div className="page3-radio-group">
+          <div className="page3-radio-options page3-radio-options--capabilities">
+            <label className="page3-radio-option page3-radio-option--stacked">
+              <input
+                type="radio"
+                name="toolsProfile"
+                value="messaging"
+                checked={state.features.toolsProfile === 'messaging'}
+                onChange={() => { handleToolsProfileChange('messaging'); }}
+              />
+              <span className="page3-radio-box" />
+              <div className="page3-radio-content">
+                <span className="page3-radio-title">Chat Bot</span>
+                <span className="page3-radio-desc">Send messages, view history — safe for public use</span>
+              </div>
+            </label>
+            <label className="page3-radio-option page3-radio-option--stacked">
+              <input
+                type="radio"
+                name="toolsProfile"
+                value="coding"
+                checked={state.features.toolsProfile === 'coding'}
+                onChange={() => { handleToolsProfileChange('coding'); }}
+              />
+              <span className="page3-radio-box" />
+              <div className="page3-radio-content">
+                <span className="page3-radio-title">Developer Assistant</span>
+                <span className="page3-radio-desc">Read/write files, run commands, search memory</span>
+              </div>
+            </label>
+            <label className="page3-radio-option page3-radio-option--stacked">
+              <input
+                type="radio"
+                name="toolsProfile"
+                value="full"
+                checked={state.features.toolsProfile === 'full'}
+                onChange={() => { handleToolsProfileChange('full'); }}
+              />
+              <span className="page3-radio-box" />
+              <div className="page3-radio-content">
+                <span className="page3-radio-title">Full Access</span>
+                <span className="page3-radio-desc">All tools including web browsing and automation</span>
+              </div>
+            </label>
           </div>
         </div>
       </section>
