@@ -47,7 +47,7 @@ export class CaddyService {
     try {
       const container = this.docker.getContainer(containerName);
       const info = await container.inspect();
-      const networks = info.NetworkSettings.Networks;
+      const networks: Record<string, { IPAddress: string } | undefined> = info.NetworkSettings.Networks;
       const networkInfo = networks[this.networkName];
 
       if (!networkInfo) {
@@ -147,7 +147,7 @@ export class CaddyService {
    * @returns Number of routes successfully restored
    */
   async restoreRoutes(
-    bots: Array<{ hostname: string; port: number }>,
+    bots: { hostname: string; port: number }[],
     internalPort: number,
     logger: { info: (msg: string | object, ...args: unknown[]) => void; warn: (msg: string | object, ...args: unknown[]) => void },
   ): Promise<number> {
