@@ -19,10 +19,11 @@ import {
   getNextBotPort,
 } from './bots/store.js';
 import { getDb } from './db/index.js';
-import { createBotWorkspace, deleteBotWorkspace } from './bots/templates.js';
+import { createBotWorkspace, deleteBotWorkspace, BOT_INTERNAL_PORT } from './bots/templates.js';
 import { writeSecret, deleteBotSecrets } from './secrets/manager.js';
 import { DockerService } from './services/DockerService.js';
 import { ReconciliationService } from './services/ReconciliationService.js';
+import { CaddyService } from './services/CaddyService.js';
 import { ContainerError } from './services/docker-errors.js';
 import {
   getProxyConfig,
@@ -36,6 +37,12 @@ import {
 } from './proxy/client.js';
 
 const docker = new DockerService();
+let caddy: CaddyService | null = null;
+
+function getCaddy(publicHost: string): CaddyService {
+  caddy ??= new CaddyService(publicHost);
+  return caddy;
+}
 
 function safeCompare(a: string, b: string): boolean {
   const aBuf = Buffer.from(a);
@@ -86,13 +93,15 @@ function invalidateSession(token: string): void {
 export { sessions, createSession, validateSession, invalidateSession };
 
 type SessionScope = 'user' | 'channel' | 'global';
+type ToolsProfile = 'minimal' | 'messaging' | 'coding' | 'full';
+type StreamingMode = 'off' | 'partial';
 
 interface CreateBotBody {
   name: string;
   hostname: string;
   emoji: string;
   avatarUrl?: string;
-  providers?: { providerId: string; model: string }[];
+  providers?: { providerId: string; model: string; apiKey?: string }[];
   primaryProvider?: string;
   channels?: { channelType: string; token: string }[];
   persona: {
@@ -106,6 +115,9 @@ interface CreateBotBody {
     sandbox: boolean;
     sandboxTimeout?: number;
     sessionScope: SessionScope;
+    toolsProfile: ToolsProfile;
+    telegramStreaming: StreamingMode;
+    discordStreaming: StreamingMode;
   };
   tags?: string[];
 }
@@ -506,6 +518,17 @@ export async function buildServer(): Promise<FastifyInstance> {
       if (proxyConfig) {
         const registration = await registerBotWithProxy(proxyConfig, bot.id, bot.hostname, body.tags);
         proxyToken = registration.token;
+
+        // Add API keys to proxy for providers that have them
+        for (const provider of body.providers) {
+          if (provider.apiKey) {
+            await addProxyKey(proxyConfig, {
+              vendor: provider.providerId,
+              secret: provider.apiKey,
+              label: `${body.hostname} - wizard`,
+            });
+          }
+        }
       }
 
       for (const channel of body.channels) {
@@ -530,17 +553,17 @@ export async function buildServer(): Promise<FastifyInstance> {
         };
       }
 
-      // Create workspace
+      // Create workspace with features and multiple channels
       createBotWorkspace(config.dataDir, {
         botId: bot.id,
         botHostname: bot.hostname,
         botName: body.name,
         aiProvider: primaryProvider.providerId,
         model: primaryProvider.model,
-        channel: {
-          type: primaryChannel.channelType as 'telegram' | 'discord',
-          token: primaryChannel.token,
-        },
+        channels: body.channels.map(c => ({
+          type: c.channelType,
+          token: c.token,
+        })),
         persona: {
           name: body.persona.name,
           identity: body.persona.soulMarkdown || '',
@@ -548,6 +571,13 @@ export async function buildServer(): Promise<FastifyInstance> {
         },
         port,
         proxy: workspaceProxyConfig,
+        features: {
+          toolsProfile: body.features.toolsProfile,
+          telegramStreaming: body.features.telegramStreaming,
+          discordStreaming: body.features.discordStreaming,
+        },
+        publicHost: config.publicHost ?? undefined,
+        gatewayToken,  // For Control UI auth
       });
 
       // Build environment
@@ -562,15 +592,25 @@ export async function buildServer(): Promise<FastifyInstance> {
         `PORT=${port}`,
       ];
 
+      // Discord doesn't support tokenFile, must use env var
+      // (Telegram uses tokenFile configured in openclaw.json)
+      const discordChannel = body.channels.find(c => c.channelType === 'discord');
+      if (discordChannel) {
+        environment.push(`DISCORD_BOT_TOKEN=${discordChannel.token}`);
+      }
+
       const containerId = await docker.createContainer(bot.hostname, bot.id, {
         image: config.openclawImage,
         environment,
         port,
+        internalPort: BOT_INTERNAL_PORT,
         hostWorkspacePath,
         hostSecretsPath,
         hostSandboxPath,
         gatewayToken,
         networkName: proxyConfig ? 'bm-internal' : undefined,
+        caddyEnabled: config.caddyEnabled,
+        publicHost: config.publicHost ?? undefined,
       });
 
       const db = getDb();
@@ -578,6 +618,17 @@ export async function buildServer(): Promise<FastifyInstance> {
         updateBot(bot.id, { container_id: containerId, image_version: config.openclawImage });
       })();
       await docker.startContainer(bot.hostname);
+      
+      // Add Caddy HTTPS route if enabled
+      if (config.caddyEnabled && config.publicHost) {
+        try {
+          await getCaddy(config.publicHost).addBotRoute(bot.hostname, port, BOT_INTERNAL_PORT);
+        } catch (err) {
+          // Log but don't fail - bot still works via internal network
+          console.error(`Warning: Failed to add Caddy route for ${bot.hostname}:`, err);
+        }
+      }
+      
       db.transaction(() => {
         updateBot(bot.id, { status: 'running' });
       })();
@@ -628,6 +679,15 @@ export async function buildServer(): Promise<FastifyInstance> {
         await revokeBotFromProxy(proxyConfig, bot.id);
       } catch {
         // Ignore proxy errors during deletion
+      }
+    }
+
+    // Remove Caddy route if enabled
+    if (config.caddyEnabled && config.publicHost) {
+      try {
+        await getCaddy(config.publicHost).removeBotRoute(bot.hostname);
+      } catch {
+        // Ignore Caddy errors during deletion
       }
     }
 
@@ -691,6 +751,59 @@ export async function buildServer(): Promise<FastifyInstance> {
       throw err;
     }
   });
+
+  // Approve a Telegram pairing code
+  server.post<{ Params: { hostname: string }; Body: { code?: string } }>(
+    '/api/bots/:hostname/pair',
+    async (request, reply) => {
+      const bot = getBotByHostname(request.params.hostname);
+
+      if (!bot) {
+        reply.code(404);
+        return { error: 'Bot not found' };
+      }
+
+      if (bot.channel_type !== 'telegram') {
+        reply.code(422);
+        return { error: 'Pairing is only supported for Telegram bots' };
+      }
+
+      const { code } = request.body;
+      if (!code || !/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/.test(code)) {
+        reply.code(422);
+        return { error: 'Invalid pairing code. Must be 8 characters (A-Z without I/O, 2-9).' };
+      }
+
+      const status = await docker.getContainerStatus(bot.hostname);
+      if (!status?.running) {
+        reply.code(409);
+        return { error: 'Bot container is not running' };
+      }
+
+      try {
+        const result = await docker.execCommand(bot.hostname, [
+          'node', 'openclaw.mjs', 'pairing', 'approve', 'telegram', code, '--notify',
+        ]);
+
+        if (result.exitCode !== 0) {
+          const msg = result.stderr.trim() || result.stdout.trim() || 'Pairing approval failed';
+          reply.code(422);
+          return { error: msg };
+        }
+
+        return {
+          success: true,
+          message: result.stdout.trim() || 'Pairing code approved',
+        };
+      } catch (err) {
+        if (err instanceof ContainerError) {
+          reply.code(500);
+          return { error: `Container error: ${err.message}` };
+        }
+        throw err;
+      }
+    }
+  );
 
   // Admin cleanup endpoint - removes orphaned containers, workspaces, and secrets
   server.post('/api/admin/cleanup', async () => {

@@ -10,6 +10,7 @@ vi.mock('../api', () => ({
   deleteBot: vi.fn(),
   startBot: vi.fn(),
   stopBot: vi.fn(),
+  pairBot: vi.fn(),
 }));
 
 describe('useBots', () => {
@@ -140,7 +141,7 @@ describe('useBots', () => {
       primaryProvider: 'openai',
       channels: [{ channelType: 'telegram', token: 'tk' }],
       persona: { name: 'New Bot', soulMarkdown: 'test' },
-      features: { commands: false, tts: false, sandbox: false, sessionScope: 'user' as const },
+      features: { commands: false, tts: false, sandbox: false, sessionScope: 'user' as const, toolsProfile: 'messaging' as const, telegramStreaming: 'off' as const, discordStreaming: 'off' as const },
     };
 
     await act(async () => {
@@ -214,5 +215,40 @@ describe('useBots', () => {
     });
 
     expect(api.deleteBot).toHaveBeenCalledWith('bot-1');
+  });
+
+  it('should handle pair success', async () => {
+    vi.mocked(api.pairBot).mockResolvedValueOnce({ success: true, message: 'Approved' });
+
+    const { result } = renderHook(() => useBots());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.handlePair('bot-1', 'ABCD2345');
+    });
+
+    expect(api.pairBot).toHaveBeenCalledWith('bot-1', 'ABCD2345');
+    expect(result.current.actionLoading).toBe(false);
+  });
+
+  it('should re-throw pair errors', async () => {
+    vi.mocked(api.pairBot).mockRejectedValueOnce(new Error('Pair failed'));
+
+    const { result } = renderHook(() => useBots());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.handlePair('bot-1', 'BADCODE1');
+      })
+    ).rejects.toThrow('Pair failed');
+
+    expect(result.current.actionLoading).toBe(false);
   });
 });

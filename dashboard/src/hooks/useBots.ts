@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Bot, CreateBotInput } from '../types';
-import { fetchBots, createBot, deleteBot, startBot, stopBot } from '../api';
+import { fetchBots, createBot, deleteBot, startBot, stopBot, pairBot } from '../api';
 
 interface UseBotsReturn {
   bots: Bot[];
@@ -13,6 +13,7 @@ interface UseBotsReturn {
   handleStart: (hostname: string) => Promise<void>;
   handleStop: (hostname: string) => Promise<void>;
   handleDelete: (hostname: string) => Promise<void>;
+  handlePair: (hostname: string, code: string) => Promise<void>;
 }
 
 export function useBots(): UseBotsReturn {
@@ -82,6 +83,15 @@ export function useBots(): UseBotsReturn {
     }
   };
 
+  const handlePair = async (hostname: string, code: string) => {
+    setActionLoading(true);
+    try {
+      await pairBot(hostname, code);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const clearError = () => { setError(''); };
 
   return {
@@ -95,5 +105,6 @@ export function useBots(): UseBotsReturn {
     handleStart,
     handleStop,
     handleDelete,
+    handlePair,
   };
 }

@@ -42,7 +42,10 @@ export interface ContainerInfo {
 export interface ContainerConfig {
   image: string;
   environment: string[];
+  /** External port for this bot (unique per bot, e.g., 19000) */
   port: number;
+  /** Internal port that OpenClaw gateway listens on (same for all bots, e.g., 8080) */
+  internalPort: number;
   /** Host path for workspace bind mount (Docker daemon perspective) */
   hostWorkspacePath: string;
   /** Host path for secrets bind mount (Docker daemon perspective) */
@@ -54,6 +57,10 @@ export interface ContainerConfig {
   networkName?: string;
   /** Extra /etc/hosts entries (e.g., ["host.docker.internal:host-gateway"]) */
   extraHosts?: string[];
+  /** Whether Caddy HTTPS proxy is enabled (affects port binding) */
+  caddyEnabled: boolean;
+  /** Public hostname for external access (used for binding decision) */
+  publicHost?: string;
 }
 
 /** Container resource statistics */

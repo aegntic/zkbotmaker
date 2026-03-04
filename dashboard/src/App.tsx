@@ -22,6 +22,7 @@ export default function App() {
     handleStart,
     handleStop,
     handleDelete,
+    handlePair,
   } = useBots();
 
   // Show login form if not authenticated
@@ -47,6 +48,7 @@ export default function App() {
           onStart={(id) => { void handleStart(id); }}
           onStop={(id) => { void handleStop(id); }}
           onDelete={(id) => { void handleDelete(id); }}
+          onPair={handlePair}
           onCreateClick={() => { setShowWizard(true); }}
         />
       )}

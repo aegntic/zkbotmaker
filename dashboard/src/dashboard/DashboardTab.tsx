@@ -10,6 +10,7 @@ interface DashboardTabProps {
   onStart: (hostname: string) => void;
   onStop: (hostname: string) => void;
   onDelete: (hostname: string) => void;
+  onPair: (hostname: string, code: string) => Promise<void>;
   onCreateClick: () => void;
   loading: boolean;
   actionLoading: boolean;
@@ -21,6 +22,7 @@ export function DashboardTab({
   onStart,
   onStop,
   onDelete,
+  onPair,
   onCreateClick,
   loading,
   actionLoading,
@@ -74,6 +76,7 @@ export function DashboardTab({
         onStart={onStart}
         onStop={onStop}
         onDelete={onDelete}
+        onPair={onPair}
         loading={actionLoading}
         defaultExpanded={true}
       />
@@ -84,6 +87,7 @@ export function DashboardTab({
         onStart={onStart}
         onStop={onStop}
         onDelete={onDelete}
+        onPair={onPair}
         loading={actionLoading}
         defaultExpanded={true}
       />
@@ -94,6 +98,7 @@ export function DashboardTab({
         onStart={onStart}
         onStop={onStop}
         onDelete={onDelete}
+        onPair={onPair}
         loading={actionLoading}
         defaultExpanded={true}
       />
@@ -104,6 +109,7 @@ export function DashboardTab({
         onStart={onStart}
         onStop={onStop}
         onDelete={onDelete}
+        onPair={onPair}
         loading={actionLoading}
         defaultExpanded={true}
       />
@@ -114,6 +120,7 @@ export function DashboardTab({
         onStart={onStart}
         onStop={onStop}
         onDelete={onDelete}
+        onPair={onPair}
         loading={actionLoading}
         defaultExpanded={true}
       />
