@@ -229,7 +229,7 @@ function generateOpenclawConfig(config: BotWorkspaceConfig): object {
         enabled: true,
         // Token is stored in secrets volume, mounted at /run/secrets in container
         tokenFile: '/run/secrets/TELEGRAM_TOKEN',
-        streaming: 'off',  // Always off: "partial" causes duplicate messages via lane rotation
+        streaming: config.features.telegramStreaming,  // Default 'off': "partial" causes duplicate messages via lane rotation
         dmPolicy: 'pairing',
         groupPolicy: 'allowlist',
         reactionLevel: 'ack',
@@ -240,7 +240,7 @@ function generateOpenclawConfig(config: BotWorkspaceConfig): object {
     } else if (channel.type === 'discord') {
       channels.discord = {
         enabled: true,
-        streaming: 'off',  // Always off: "partial" causes duplicate messages via lane rotation
+        streaming: config.features.discordStreaming,  // Default 'off': "partial" causes duplicate messages via lane rotation
         dmPolicy: 'pairing',
         groupPolicy: 'allowlist',
         textChunkLimit: 2000,

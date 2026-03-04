@@ -151,7 +151,7 @@ describe('templates', () => {
       expect((openclawConfig.channels as Record<string, unknown>).telegram).toEqual({
         enabled: true,
         tokenFile: '/run/secrets/TELEGRAM_TOKEN',
-        streaming: 'off',
+        streaming: 'partial',
         dmPolicy: 'pairing',
         groupPolicy: 'allowlist',
         reactionLevel: 'ack',
@@ -163,6 +163,28 @@ describe('templates', () => {
       expect(defaults.model).toEqual({ primary: 'openai/gpt-4' });
       expect(defaults.memorySearch).toEqual({ enabled: false });
       expect(openclawConfig.models).toBeUndefined();
+    });
+
+    it('should use default streaming off when not overridden', () => {
+      const config = createTestConfig({
+        features: {
+          toolsProfile: 'messaging',
+          telegramStreaming: 'off',
+          discordStreaming: 'off',
+        },
+        channels: [
+          { type: 'telegram', token: 'tg-token-123' },
+          { type: 'discord', token: 'dc-token-123' },
+        ],
+      });
+      createBotWorkspace(testDir, config);
+
+      const openclawPath = join(testDir, 'bots', config.botHostname, 'openclaw.json');
+      const openclawConfig = JSON.parse(readFileSync(openclawPath, 'utf-8')) as Record<string, unknown>;
+      const channels = openclawConfig.channels as Record<string, Record<string, unknown>>;
+
+      expect(channels.telegram.streaming).toBe('off');
+      expect(channels.discord.streaming).toBe('off');
     });
 
     it('should create openclaw.json with proxy', () => {

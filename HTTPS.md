@@ -16,7 +16,14 @@ BotMaker can optionally run behind a Caddy reverse proxy for automatic HTTPS wit
    }
    ```
 
-3. **Start with HTTPS profile:**
+3. **Set required environment variables** (e.g., in `.env`):
+   ```bash
+   PUBLIC_HOST=yourdomain.com
+   CADDY_ENABLED=true
+   ```
+   Without these, BotMaker will bind bot ports directly instead of routing through Caddy, and per-bot HTTPS routes won't be registered.
+
+4. **Start with HTTPS profile:**
    ```bash
    docker compose --profile https up -d
    ```
@@ -24,6 +31,7 @@ BotMaker can optionally run behind a Caddy reverse proxy for automatic HTTPS wit
 ## Requirements
 
 - Your domain must be publicly accessible on ports 80 and 443
+- Bot Control UI ports (19000+) must also be reachable from clients for `https://PUBLIC_HOST:<botPort>` access
 - DNS A/AAAA records must point to this server
 - Caddy will automatically obtain and renew Let's Encrypt certificates
 

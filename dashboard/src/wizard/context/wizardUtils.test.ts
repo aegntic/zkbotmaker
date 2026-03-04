@@ -144,15 +144,14 @@ describe('validatePage', () => {
   });
 
   describe('page 3 (Config)', () => {
-    it('should require API key for providers that need auth', () => {
+    it('should not require API keys (may exist in keyring-proxy)', () => {
       const state = createDefaultState();
       state.enabledProviders = ['openai'];
       state.enabledChannels = ['telegram'];
       state.providerConfigs = { openai: { model: 'gpt-4' } };
       state.channelConfigs = { telegram: { token: 'bot-token' } };
       const result = validatePage(3, state);
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('API key required for OpenAI');
+      expect(result.valid).toBe(true);
     });
 
     it('should require token for each enabled channel', () => {
@@ -170,32 +169,6 @@ describe('validatePage', () => {
       state.enabledProviders = ['openai'];
       state.enabledChannels = ['telegram'];
       state.providerConfigs = { openai: { model: 'gpt-4', apiKey: 'sk-test-key' } };
-      state.channelConfigs = { telegram: { token: 'bot-token' } };
-      const result = validatePage(3, state);
-      expect(result.valid).toBe(true);
-    });
-
-    it('should validate multiple providers and channels', () => {
-      const state = createDefaultState();
-      state.enabledProviders = ['openai', 'anthropic'];
-      state.enabledChannels = ['telegram', 'discord'];
-      state.providerConfigs = {
-        openai: { model: 'gpt-4', apiKey: 'sk-test-key' },
-        anthropic: { model: 'claude-3', apiKey: 'sk-ant-test-key' },
-      };
-      state.channelConfigs = {
-        telegram: { token: 'tg-token' },
-        discord: { token: 'dc-token' },
-      };
-      const result = validatePage(3, state);
-      expect(result.valid).toBe(true);
-    });
-
-    it('should not require API key for noAuth providers like Ollama', () => {
-      const state = createDefaultState();
-      state.enabledProviders = ['ollama'];
-      state.enabledChannels = ['telegram'];
-      state.providerConfigs = { ollama: { model: 'llama3' } };
       state.channelConfigs = { telegram: { token: 'bot-token' } };
       const result = validatePage(3, state);
       expect(result.valid).toBe(true);
@@ -238,7 +211,7 @@ describe('buildCreateBotInput', () => {
       hostname: 'test-bot',
       emoji: '🤖',
       avatarUrl: undefined,
-      providers: [{ providerId: 'openai', model: 'gpt-4', baseUrl: undefined }],
+      providers: [{ providerId: 'openai', model: 'gpt-4' }],
       primaryProvider: 'openai',
       channels: [{ channelType: 'telegram', token: 'bot-token' }],
       persona: {

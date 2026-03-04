@@ -21,6 +21,7 @@ vi.mock('dockerode', () => {
 });
 
 import { DockerService } from './DockerService.js';
+import { ContainerError } from './docker-errors.js';
 
 describe('DockerService.execCommand', () => {
   let docker: DockerService;
@@ -98,6 +99,27 @@ describe('DockerService.execCommand', () => {
     );
 
     expect(stream.destroy).toHaveBeenCalled();
+  });
+
+  it('should throw plain Error for exec timeout, not ContainerError', async () => {
+    const stream = new EventEmitter() as EventEmitter & { destroy: () => void };
+    stream.destroy = vi.fn();
+
+    mockExecStart.mockResolvedValue(stream);
+
+    mockDemuxStream.mockImplementation(() => {
+      // Never emit 'end' — simulates a hanging command
+    });
+
+    try {
+      await docker.execCommand('bob', ['sleep', '999'], 50);
+      expect.fail('should have thrown');
+    } catch (err) {
+      // Must be a plain Error, NOT a ContainerError with NETWORK_ERROR code
+      expect(err).toBeInstanceOf(Error);
+      expect(err).not.toBeInstanceOf(ContainerError);
+      expect((err as Error).message).toContain('Exec timed out');
+    }
   });
 
   it('should handle stream errors', async () => {

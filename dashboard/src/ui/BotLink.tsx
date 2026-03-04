@@ -27,9 +27,8 @@ function getLanHost(fallback?: string): string {
 
 export function BotLink({ port, hostname, gatewayToken, disabled }: BotLinkProps) {
   const host = getLanHost(hostname);
-  // Use HTTPS if we're on a public hostname (not localhost/LAN IP)
-  const isPublicHost = !/^(localhost|127\.0\.0\.1|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(host);
-  const protocol = isPublicHost ? 'https' : 'http';
+  // Match protocol of the current page to avoid incorrect HTTPS/HTTP guesses
+  const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
   const baseUrl = `${protocol}://${host}:${port}/`;
   // Include gateway token for Control UI auth (skips device pairing)
   const url = gatewayToken ? `${baseUrl}#token=${encodeURIComponent(gatewayToken)}` : baseUrl;

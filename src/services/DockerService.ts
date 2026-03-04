@@ -420,6 +420,11 @@ export class DockerService {
         });
       });
     } catch (err) {
+      // Don't wrap exec timeouts — wrapDockerError would misclassify
+      // "Exec timed out" as NETWORK_ERROR ("Docker daemon connection timeout")
+      if (err instanceof Error && err.message.startsWith('Exec timed out')) {
+        throw err;
+      }
       throw wrapDockerError(err, hostname);
     }
   }

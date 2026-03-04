@@ -86,7 +86,7 @@ export function getConfig(): AppConfig {
     throw new Error('ADMIN_PASSWORD must be at least 12 characters');
   }
 
-  return {
+  const config: AppConfig = {
     port: getEnvIntOrDefault('PORT', 7100),
     host: getEnvOrDefault('HOST', '0.0.0.0'),
     dataDir: getEnvOrDefault('DATA_DIR', './data'),
@@ -100,9 +100,15 @@ export function getConfig(): AppConfig {
     proxyAdminToken,
     adminPassword,
     sessionExpiryMs: getEnvIntOrDefault('SESSION_EXPIRY_MS', 24 * 60 * 60 * 1000),
-    publicHost: process.env.PUBLIC_HOST ?? null,
+    publicHost: process.env.PUBLIC_HOST?.trim() || null,
     caddyEnabled: process.env.CADDY_ENABLED === 'true',
   };
+
+  if (config.caddyEnabled && !config.publicHost) {
+    throw new Error('PUBLIC_HOST is required when CADDY_ENABLED=true (bots would have no port binding and no Caddy route)');
+  }
+
+  return config;
 }
 
 export default getConfig;

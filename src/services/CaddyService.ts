@@ -50,6 +50,9 @@ export class CaddyService {
       const networks = info.NetworkSettings.Networks;
       const networkInfo = networks[this.networkName];
 
+      if (!networkInfo) {
+        throw new Error(`Container ${containerName} is not connected to network ${this.networkName}`);
+      }
       if (!networkInfo.IPAddress) {
         throw new Error(`Container ${containerName} has no IP on network ${this.networkName}`);
       }

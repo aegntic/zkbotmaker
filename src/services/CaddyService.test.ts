@@ -89,6 +89,28 @@ describe('CaddyService', () => {
       ]);
     });
 
+    it('should throw when container is not on expected network', async () => {
+      const dockerInstance = (await import('dockerode')).default;
+      const mockContainer = {
+        inspect: vi.fn().mockResolvedValue({
+          NetworkSettings: {
+            Networks: {
+              'some-other-network': { IPAddress: '172.18.0.5' },
+            },
+          },
+        }),
+      };
+      vi.mocked(dockerInstance).mockImplementation(() => ({
+        getContainer: vi.fn().mockReturnValue(mockContainer),
+      }) as unknown as InstanceType<typeof dockerInstance>);
+
+      caddy = new CaddyService('us1.example.com');
+
+      await expect(caddy.addBotRoute('bob', 19000, 8080)).rejects.toThrow(
+        'not connected to network bm-internal',
+      );
+    });
+
     it('should throw when Caddy returns error', async () => {
       const dockerInstance = (await import('dockerode')).default;
       const mockContainer = {

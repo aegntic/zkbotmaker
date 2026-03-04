@@ -1,5 +1,4 @@
 import type { SessionScope, ToolsProfile, StreamingMode, CreateBotInput } from '../../types';
-import { requiresAuth, getProvider } from '../../config/providers';
 
 export interface WizardState {
   selectedTemplateId: string | null;
@@ -68,16 +67,9 @@ export function validatePage(page: number, state: WizardState): ValidationResult
       return { valid: true };
 
     case 3:
-      // Config details - check providers that need API keys
-      for (const providerId of state.enabledProviders) {
-        if (requiresAuth(providerId)) {
-          const config = state.providerConfigs[providerId];
-          if (!config?.apiKey?.trim()) {
-            const provider = getProvider(providerId);
-            return { valid: false, error: `API key required for ${provider?.label ?? providerId}` };
-          }
-        }
-      }
+      // Config details - provider API keys are not validated here because they
+      // may already exist in keyring-proxy. Page 5 (Summary) warns about missing
+      // keys and provides an "Add" flow.
       // Check channel tokens
       for (const channelId of state.enabledChannels) {
         const config = state.channelConfigs[channelId];
@@ -97,12 +89,16 @@ export function validatePage(page: number, state: WizardState): ValidationResult
 }
 
 export function buildCreateBotInput(state: WizardState): CreateBotInput {
-  const providers = state.enabledProviders.map((providerId) => ({
-    providerId,
-    model: state.providerConfigs[providerId]?.model ?? '',
-    baseUrl: state.providerConfigs[providerId]?.baseUrl,
-    apiKey: state.providerConfigs[providerId]?.apiKey,
-  }));
+  const providers = state.enabledProviders.map((providerId) => {
+    const cfg = state.providerConfigs[providerId];
+    const entry: { providerId: string; model: string; baseUrl?: string; apiKey?: string } = {
+      providerId,
+      model: cfg?.model ?? '',
+    };
+    if (cfg?.baseUrl) entry.baseUrl = cfg.baseUrl;
+    if (cfg?.apiKey) entry.apiKey = cfg.apiKey;
+    return entry;
+  });
 
   const channels = state.enabledChannels.map((channelType) => ({
     channelType,

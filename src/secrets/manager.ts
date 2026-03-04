@@ -2,14 +2,44 @@
  * Secrets Manager
  *
  * Per-bot credential isolation with Unix file permissions.
- * Each bot gets its own directory (0700) and secret files (0600).
+ * Each bot gets its own directory and secret files, chowned to the bot
+ * container UID (1000) with tight permissions (0700/0600) when running as
+ * root, falling back to world-readable (0755/0644) otherwise.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, rmSync, chownSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 
 const HOSTNAME_REGEX = /^[a-z0-9-]{1,64}$/;
 const SECRET_NAME_REGEX = /^[A-Z0-9_]{1,64}$/;
+
+/** UID/GID of the 'node' user inside OpenClaw bot containers */
+const BOT_UID = 1000;
+const BOT_GID = 1000;
+
+/**
+ * Try to chown a path to the bot container user.
+ * Returns true on success, false if not permitted (non-root).
+ */
+function tryChown(path: string): boolean {
+  try {
+    chownSync(path, BOT_UID, BOT_GID);
+    return true;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw err;
+  }
+}
+
+/**
+ * Set ownership and permissions on a secrets path.
+ * If chown succeeds: use tight permissions (only bot user can access).
+ * If chown fails (not root): fall back to world-readable so bot container can still read.
+ */
+function setSecretOwnership(path: string, tightMode: number, fallbackMode: number): void {
+  const owned = tryChown(path);
+  chmodSync(path, owned ? tightMode : fallbackMode);
+}
 
 /**
  * Returns the root directory for secrets storage.
@@ -34,9 +64,8 @@ export function validateHostname(hostname: string): void {
 
 /**
  * Creates a secrets directory for a specific bot.
- * Directory is created with mode 0755 (world-readable) because bot containers
- * run as non-root user 'node' (uid 1000) but secrets are written by root.
- * Security is maintained by per-bot isolation (each bot only sees its own dir).
+ * Chowns to bot UID (1000) with mode 0700 when possible; falls back to
+ * 0755 if not running as root so the bot container can still read.
  *
  * @param hostname - Hostname of the bot
  * @returns Path to the created directory
@@ -48,16 +77,16 @@ export function createBotSecretsDir(hostname: string): string {
   const secretsRoot = getSecretsRoot();
   const botDir = join(secretsRoot, hostname);
 
-  mkdirSync(botDir, { mode: 0o755, recursive: true });
+  mkdirSync(botDir, { recursive: true });
+  setSecretOwnership(botDir, 0o700, 0o755);
 
   return botDir;
 }
 
 /**
  * Writes a secret file for a bot.
- * File is written with mode 0644 (world-readable) because bot containers
- * run as non-root user 'node' (uid 1000) but secrets are written by root.
- * Security is maintained by per-bot isolation (each bot only sees its own dir).
+ * Chowns to bot UID (1000) with mode 0600 when possible; falls back to
+ * 0644 if not running as root so the bot container can still read.
  *
  * @param hostname - Hostname of the bot
  * @param name - Name of the secret (becomes filename)
@@ -74,7 +103,8 @@ export function writeSecret(hostname: string, name: string, value: string): void
   const botDir = createBotSecretsDir(hostname);
   const filePath = join(botDir, name);
 
-  writeFileSync(filePath, value, { mode: 0o644 });
+  writeFileSync(filePath, value);
+  setSecretOwnership(filePath, 0o600, 0o644);
 }
 
 /**
