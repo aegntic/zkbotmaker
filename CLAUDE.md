@@ -91,6 +91,8 @@ collisions with OpenClaw's built-in provider defaults.
 - `src/bots/templates.ts` — Generates openclaw.json from wizard input
 - `src/bots/store.ts` — Bot DB CRUD (better-sqlite3, no ORM)
 - `src/services/DockerService.ts` — Container lifecycle
+- `src/services/CaddyService.ts` — Dynamic HTTPS route management (optional)
+- `src/services/ReconciliationService.ts` — Startup state sync, orphan cleanup
 - `proxy/src/types.ts` — All 15+ LLM vendor configs + `initOllamaVendor()`
 - `proxy/src/services/upstream.ts` — Transparent request forwarding (any path)
 - `proxy/src/routes/proxy.ts` — Auth validation, key selection, forwarding
@@ -144,6 +146,23 @@ BotMaker has been updated for OpenClaw 2026.3.2+:
 - Other providers use `provider: "openai"` for OpenAI-compatible endpoints
 - `fallback: "none"` explicitly set (no silent fallbacks)
 - ~13/22 providers support embeddings; rest get `enabled: false`
+
+### Docker Networking
+- **bm-internal** network: Connects botmaker, keyring-proxy, and all bot containers
+- Bots communicate with keyring-proxy via `http://keyring-proxy:9101`
+- Bot internal port: `8080` (OpenClaw gateway), external ports start at `19000`
+
+### HTTPS (Optional)
+Enable Caddy reverse proxy with `docker compose --profile https up -d`:
+- Requires `Caddyfile` in project root
+- Sets `CADDY_ENABLED=true` and `PUBLIC_HOST=your.domain.com`
+- Bots get automatic HTTPS routes via `CaddyService.ts`
+
+### State Reconciliation
+On startup, `ReconciliationService.ts` syncs database with reality:
+- Updates bot status based on actual container state
+- Detects orphaned containers, workspaces, and secrets
+- `/api/admin/orphans` previews cleanup, `/api/admin/cleanup` executes it
 
 ## CI
 
